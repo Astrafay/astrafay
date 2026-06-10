@@ -1,0 +1,716 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8"/>
+  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+  <title>Astrafay — Insights Publisher</title>
+  <link href="https://fonts.googleapis.com/css2?family=Playfair+Display:ital,wght@0,700;1,400&family=Inter:wght@400;500;600&family=DM+Mono:wght@400;500&display=swap" rel="stylesheet"/>
+  <style>
+    :root {
+      --ink: #1c1812; --paper: #fdfaf5; --cream: #f5efe3;
+      --gold: #c8963c; --mid: #72685a; --light: #b0aba6;
+      --rule: rgba(28,24,18,0.11);
+      --ff-head: 'Playfair Display', Georgia, serif;
+      --ff-mono: 'DM Mono', monospace;
+      --ff-body: 'Inter', sans-serif;
+    }
+
+    * { box-sizing: border-box; margin: 0; padding: 0; }
+    body { background: var(--paper); color: var(--ink); font-family: var(--ff-body); font-size: 16px; min-height: 100vh; }
+
+    .app { max-width: 860px; margin: 0 auto; padding: 2rem 1.5rem 4rem; }
+
+    /* Header */
+    .app-header {
+      display: flex; align-items: center; justify-content: space-between;
+      padding-bottom: 1.5rem; border-bottom: 1px solid var(--rule);
+      margin-bottom: 2.5rem;
+    }
+    .app-logo { font-family: var(--ff-mono); font-size: 0.8rem; letter-spacing: 0.28em; text-transform: uppercase; color: var(--ink); text-decoration: none; }
+    .app-title { font-family: var(--ff-mono); font-size: 0.65rem; letter-spacing: 0.2em; text-transform: uppercase; color: var(--gold); }
+
+    /* Step indicator */
+    .steps {
+      display: flex; gap: 0; margin-bottom: 2.5rem;
+      border: 1px solid var(--rule); overflow: hidden;
+    }
+    .step {
+      flex: 1; padding: 0.75rem 1rem; text-align: center;
+      font-family: var(--ff-mono); font-size: 0.6rem;
+      letter-spacing: 0.15em; text-transform: uppercase;
+      color: var(--light); background: var(--cream);
+      border-right: 1px solid var(--rule);
+      transition: all 0.2s;
+    }
+    .step:last-child { border-right: none; }
+    .step.active { background: var(--ink); color: var(--paper); }
+    .step.done { background: var(--gold); color: var(--ink); }
+
+    /* Panel */
+    .panel { display: none; }
+    .panel.active { display: block; }
+
+    /* Config panel */
+    .config-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 1.2rem; margin-bottom: 1.5rem; }
+
+    label {
+      display: block; font-family: var(--ff-mono);
+      font-size: 0.62rem; letter-spacing: 0.18em; text-transform: uppercase;
+      color: var(--mid); margin-bottom: 0.45rem;
+    }
+
+    input[type=text], select, textarea {
+      width: 100%; background: white;
+      border: 1px solid var(--rule); border-radius: 0;
+      padding: 0.8rem 1rem; font-family: var(--ff-body);
+      font-size: 0.95rem; color: var(--ink);
+      outline: none; -webkit-appearance: none;
+      transition: border-color 0.2s;
+    }
+
+    input[type=text]:focus, select:focus, textarea:focus { border-color: var(--gold); }
+    textarea { resize: vertical; min-height: 80px; }
+
+    .topic-suggestions {
+      display: flex; flex-wrap: wrap; gap: 0.4rem; margin-top: 0.75rem;
+    }
+
+    .suggestion {
+      font-family: var(--ff-mono); font-size: 0.58rem;
+      letter-spacing: 0.1em; text-transform: uppercase;
+      border: 1px solid var(--rule); color: var(--mid);
+      padding: 0.3rem 0.7rem; cursor: pointer;
+      background: var(--cream); transition: all 0.15s;
+    }
+    .suggestion:hover { border-color: var(--gold); color: var(--gold); background: white; }
+
+    /* Buttons */
+    .btn {
+      font-family: var(--ff-mono); font-size: 0.68rem;
+      letter-spacing: 0.18em; text-transform: uppercase;
+      border: none; padding: 0.9rem 2rem; cursor: pointer;
+      transition: background 0.2s, color 0.2s;
+    }
+    .btn-primary { background: var(--ink); color: var(--paper); }
+    .btn-primary:hover { background: var(--gold); color: var(--ink); }
+    .btn-primary:disabled { background: var(--light); cursor: not-allowed; }
+    .btn-outline { background: transparent; border: 1px solid var(--rule); color: var(--ink); }
+    .btn-outline:hover { border-color: var(--ink); }
+    .btn-publish { background: var(--gold); color: var(--ink); }
+    .btn-publish:hover { background: var(--ink); color: var(--paper); }
+    .btn-publish:disabled { background: var(--light); cursor: not-allowed; }
+
+    .btn-row { display: flex; gap: 0.75rem; margin-top: 1.5rem; flex-wrap: wrap; }
+
+    /* Loading spinner */
+    .spinner {
+      display: inline-block; width: 16px; height: 16px;
+      border: 2px solid rgba(255,255,255,0.3);
+      border-top-color: white; border-radius: 50%;
+      animation: spin 0.7s linear infinite; vertical-align: middle; margin-right: 0.4rem;
+    }
+    @keyframes spin { to { transform: rotate(360deg); } }
+
+    /* Preview panel */
+    .preview-meta {
+      display: flex; gap: 1.5rem; flex-wrap: wrap;
+      padding: 1rem 1.5rem; background: var(--cream);
+      border: 1px solid var(--rule); margin-bottom: 1.5rem;
+      font-family: var(--ff-mono); font-size: 0.6rem;
+      letter-spacing: 0.15em; text-transform: uppercase; color: var(--mid);
+    }
+    .preview-meta span { color: var(--gold); }
+
+    .preview-content {
+      border: 1px solid var(--rule); padding: 2rem;
+      background: white; max-height: 55vh; overflow-y: auto;
+      line-height: 1.8; font-size: 1rem; color: var(--ink);
+    }
+
+    .preview-content h1 {
+      font-family: var(--ff-head); font-size: 1.8rem; font-weight: 700;
+      margin-bottom: 1rem; line-height: 1.2;
+    }
+
+    .preview-content h2 {
+      font-family: var(--ff-head); font-size: 1.3rem; font-weight: 700;
+      margin: 1.5rem 0 0.75rem; color: var(--ink);
+    }
+
+    .preview-content p { margin-bottom: 1rem; color: var(--mid); }
+
+    .edit-note {
+      font-size: 0.82rem; color: var(--mid);
+      margin-top: 0.75rem; font-style: italic;
+    }
+
+    /* Status / publish panel */
+    .status-box {
+      padding: 2rem; border: 1px solid var(--rule);
+      background: var(--cream); text-align: center;
+    }
+
+    .status-icon { font-size: 2.5rem; margin-bottom: 1rem; }
+
+    .status-title {
+      font-family: var(--ff-head); font-size: 1.6rem; font-weight: 700;
+      margin-bottom: 0.75rem;
+    }
+
+    .status-body { font-size: 0.95rem; color: var(--mid); line-height: 1.7; }
+
+    .status-link {
+      display: inline-block; margin-top: 1.25rem;
+      font-family: var(--ff-mono); font-size: 0.65rem;
+      letter-spacing: 0.15em; text-transform: uppercase;
+      color: var(--gold); text-decoration: none;
+      border-bottom: 1px solid var(--gold); padding-bottom: 0.1rem;
+    }
+
+    /* Settings drawer */
+    .settings-bar {
+      background: var(--cream); border: 1px solid var(--rule);
+      padding: 1.25rem 1.5rem; margin-bottom: 2rem;
+      display: flex; align-items: center; gap: 1rem; flex-wrap: wrap;
+    }
+
+    .settings-bar label { margin: 0; }
+    .settings-bar input[type=text] { flex: 1; min-width: 180px; max-width: 320px; padding: 0.55rem 0.8rem; }
+
+    .settings-toggle {
+      font-family: var(--ff-mono); font-size: 0.6rem;
+      letter-spacing: 0.15em; text-transform: uppercase;
+      color: var(--mid); cursor: pointer; text-decoration: underline;
+      background: none; border: none; padding: 0;
+    }
+
+    .error-msg {
+      background: #fdf0f0; border: 1px solid #e8b4b4;
+      color: #8b2020; padding: 0.85rem 1.1rem;
+      font-size: 0.88rem; margin-top: 1rem;
+    }
+  </style>
+</head>
+<body>
+<div class="app">
+
+  <!-- Header -->
+  <div class="app-header">
+    <a href="index.html" class="app-logo">Astrafay</a>
+    <span class="app-title">Insights Publisher</span>
+  </div>
+
+  <!-- Settings (collapsed by default) -->
+  <div id="settings-bar" class="settings-bar" style="display:none;">
+    <label>GitHub Token</label>
+    <input type="text" id="gh-token" placeholder="ghp_..." oninput="saveSettings()" />
+    <label style="margin-left:0.5rem;">Anthropic API Key</label>
+    <input type="text" id="anthropic-key" placeholder="sk-ant-..." oninput="saveSettings()" />
+  </div>
+  <div style="margin-bottom:1.5rem;text-align:right;">
+    <button class="settings-toggle" onclick="toggleSettings()">⚙ Settings</button>
+  </div>
+
+  <!-- Step indicator -->
+  <div class="steps">
+    <div class="step active" id="step-1">1 — Topic</div>
+    <div class="step" id="step-2">2 — Review</div>
+    <div class="step" id="step-3">3 — Published</div>
+  </div>
+
+  <!-- PANEL 1: Topic selection -->
+  <div class="panel active" id="panel-1">
+    <h2 style="font-family:var(--ff-head);font-size:1.6rem;font-weight:700;margin-bottom:0.4rem;">What's this week's insight?</h2>
+    <p style="color:var(--mid);font-size:0.95rem;margin-bottom:2rem;">Pick a category, enter a topic or angle, and optionally add notes. Claude will draft a sharp, publishable piece.</p>
+
+    <div class="config-grid">
+      <div>
+        <label>Category</label>
+        <select id="category">
+          <option value="healthcare">Healthcare Systems &amp; Policy</option>
+          <option value="geopolitics">GCC &amp; MENA Geopolitics</option>
+          <option value="investment">Investment &amp; Sovereign Capital</option>
+          <option value="transformation">Business Transformation</option>
+          <option value="egypt">Egypt, Africa &amp; Emerging Markets</option>
+          <option value="healthcare">AI in Healthcare</option>
+        </select>
+      </div>
+      <div>
+        <label>Tone</label>
+        <select id="tone">
+          <option value="analytical">Analytical &amp; Incisive</option>
+          <option value="strategic">Strategic &amp; Advisory</option>
+          <option value="opinionated">Opinionated &amp; Direct</option>
+          <option value="accessible">Accessible &amp; Explanatory</option>
+        </select>
+      </div>
+    </div>
+
+    <div style="margin-bottom:1.2rem;">
+      <label>Topic / Angle</label>
+      <input type="text" id="topic" placeholder="e.g. Why GCC healthcare systems are underinvesting in preventive care" />
+      <div class="topic-suggestions" id="suggestions"></div>
+    </div>
+
+    <div>
+      <label>Your notes or angle (optional)</label>
+      <textarea id="notes" placeholder="Any specific points, data, or perspective you want included..."></textarea>
+    </div>
+
+    <div id="error-1" class="error-msg" style="display:none;"></div>
+
+    <div class="btn-row">
+      <button class="btn btn-primary" id="generate-btn" onclick="generateInsight()">
+        Generate Draft →
+      </button>
+    </div>
+  </div>
+
+  <!-- PANEL 2: Review & edit -->
+  <div class="panel" id="panel-2">
+    <h2 style="font-family:var(--ff-head);font-size:1.6rem;font-weight:700;margin-bottom:0.4rem;">Review your insight</h2>
+    <p style="color:var(--mid);font-size:0.95rem;margin-bottom:1.5rem;">Edit directly in the box below, then publish when ready.</p>
+
+    <div class="preview-meta" id="preview-meta"></div>
+
+    <div class="preview-content" id="preview-content" contenteditable="true"></div>
+    <p class="edit-note">↑ Click anywhere to edit before publishing.</p>
+
+    <div id="error-2" class="error-msg" style="display:none;"></div>
+
+    <div class="btn-row">
+      <button class="btn btn-outline" onclick="goBack()">← Regenerate</button>
+      <button class="btn btn-publish" id="publish-btn" onclick="publishInsight()">
+        Publish to astrafay.com →
+      </button>
+    </div>
+  </div>
+
+  <!-- PANEL 3: Published -->
+  <div class="panel" id="panel-3">
+    <div class="status-box">
+      <div class="status-icon">✓</div>
+      <div class="status-title" id="pub-title"></div>
+      <div class="status-body">
+        Your insight is live on <strong>astrafay.com/insights</strong> and will appear in the homepage teaser within a few minutes.<br><br>
+        <a class="status-link" href="https://astrafay.com/insights" target="_blank">View on site →</a>
+      </div>
+    </div>
+    <div class="btn-row" style="justify-content:center;margin-top:2rem;">
+      <button class="btn btn-primary" onclick="reset()">Write another insight →</button>
+    </div>
+  </div>
+
+</div>
+
+<script>
+// ── Config ──────────────────────────────────────────────
+const GH_REPO  = 'Astrafay/astrafay.github.io';
+const AUTHOR   = 'Dr. Mohamed Elfayoumy';
+
+const CATEGORY_LABELS = {
+  healthcare:     'Healthcare & Policy',
+  geopolitics:    'GCC & MENA',
+  investment:     'Investment',
+  transformation: 'Transformation',
+  egypt:          'Egypt & Africa',
+};
+
+const SUGGESTIONS = {
+  healthcare:     ['AI triage in Arab hospitals', 'Vision 2030 health targets: progress check', 'Why PPP models are failing in MENA health', 'Primary care gaps in the GCC', 'Egypt pharma sector opportunity'],
+  geopolitics:    ['Gulf normalisation — what it means for business', 'Saudi-Iran détente: 12 months later', 'UAE as the new neutral capital', 'MENA amid US-China decoupling', 'Egypt's economic pressure points'],
+  investment:     ['PIF's global diversification strategy', 'Why family offices are moving to Abu Dhabi', 'African healthcare as an asset class', 'MENA VC market reality check', 'Egypt stock market — hidden value or value trap'],
+  transformation: ['Why most McKinsey strategies fail in government', 'Change management in sovereign institutions', 'The operating model problem in GCC health', 'Digital transformation without the buzzwords', 'What makes a CSO role actually work'],
+  egypt:          ['Egypt's economic reform — what's real', 'East Africa healthcare investment landscape', 'Egypt devaluation: investor playbook', 'Morocco as Africa gateway', 'Bosta and the logistics revolution in MENA'],
+};
+
+// ── State ────────────────────────────────────────────────
+let currentDraft = null;
+let currentMeta  = null;
+
+// ── Settings ─────────────────────────────────────────────
+function loadSettings() {
+  document.getElementById('gh-token').value      = localStorage.getItem('gh_token') || '';
+  document.getElementById('anthropic-key').value = localStorage.getItem('anthropic_key') || '';
+}
+
+function saveSettings() {
+  localStorage.setItem('gh_token',      document.getElementById('gh-token').value.trim());
+  localStorage.setItem('anthropic_key', document.getElementById('anthropic-key').value.trim());
+}
+
+function toggleSettings() {
+  const bar = document.getElementById('settings-bar');
+  bar.style.display = bar.style.display === 'none' ? 'flex' : 'none';
+}
+
+function getToken()      { return localStorage.getItem('gh_token') || ''; }
+function getAnthropicKey() { return localStorage.getItem('anthropic_key') || ''; }
+
+// ── Suggestions ───────────────────────────────────────────
+document.getElementById('category').addEventListener('change', updateSuggestions);
+
+function updateSuggestions() {
+  const cat  = document.getElementById('category').value;
+  const list = SUGGESTIONS[cat] || [];
+  document.getElementById('suggestions').innerHTML = list.map(s =>
+    `<span class="suggestion" onclick="useSuggestion('${s.replace(/'/g, "\\'")}')">${s}</span>`
+  ).join('');
+}
+
+function useSuggestion(s) {
+  document.getElementById('topic').value = s;
+}
+
+// ── Step navigation ───────────────────────────────────────
+function setStep(n) {
+  for (let i = 1; i <= 3; i++) {
+    const stepEl  = document.getElementById(`step-${i}`);
+    const panelEl = document.getElementById(`panel-${i}`);
+    panelEl.classList.toggle('active', i === n);
+    stepEl.classList.remove('active', 'done');
+    if (i < n)  stepEl.classList.add('done');
+    if (i === n) stepEl.classList.add('active');
+  }
+}
+
+function goBack() { setStep(1); }
+function reset()  { setStep(1); document.getElementById('topic').value = ''; document.getElementById('notes').value = ''; }
+
+// ── Generate ──────────────────────────────────────────────
+async function generateInsight() {
+  const topic    = document.getElementById('topic').value.trim();
+  const category = document.getElementById('category').value;
+  const tone     = document.getElementById('tone').value;
+  const notes    = document.getElementById('notes').value.trim();
+  const apiKey   = getAnthropicKey();
+
+  if (!topic) { showError(1, 'Please enter a topic.'); return; }
+  if (!apiKey) { showError(1, 'Add your Anthropic API key in ⚙ Settings first.'); return; }
+
+  hideError(1);
+  const btn = document.getElementById('generate-btn');
+  btn.disabled = true;
+  btn.innerHTML = '<span class="spinner"></span>Generating...';
+
+  const toneInstructions = {
+    analytical:   'Sharp, data-informed, incisive. Challenge assumptions. Use clear structure.',
+    strategic:    'Senior advisory voice. Write like a McKinsey partner briefing a CEO.',
+    opinionated:  'Take a clear position. Be direct. Back it with reasoning, not just opinion.',
+    accessible:   'Accessible to intelligent non-specialists. Clear, no jargon, practical.',
+  };
+
+  const prompt = `You are writing an insight piece for Astrafay's website — a UAE-based strategic advisory firm led by Dr. Mohamed Elfayoumy, who advises governments, sovereign funds, and enterprises across the GCC, MENA, and Africa. His background spans McKinsey, diplomacy (Egyptian Consul General, UN Special Envoy advisor), healthcare (physician by training), and deep regional expertise.
+
+Write a sharp, original insight piece on the following topic:
+Topic: ${topic}
+Category: ${CATEGORY_LABELS[category] || category}
+Tone: ${toneInstructions[tone]}
+${notes ? `Additional notes from the author: ${notes}` : ''}
+
+Structure requirements:
+- A compelling headline (no quotes around it)
+- One-sentence deck (the hook — appears under the headline)
+- 4-6 short sections with subheadings, each 2-3 paragraphs
+- A concise closing paragraph with a forward-looking observation
+- Total length: 650-850 words
+- Voice: authoritative, regional insider perspective, never generic consulting speak
+
+Output format — return ONLY valid JSON, no markdown, no preamble:
+{
+  "title": "...",
+  "deck": "...",
+  "excerpt": "one sentence for the card preview, max 25 words",
+  "readTime": 4,
+  "body": "full HTML body using only <h2>, <p> tags. No <h1>. No inline styles."
+}`;
+
+  try {
+    const res = await fetch('https://api.anthropic.com/v1/messages', {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        'x-api-key': apiKey,
+        'anthropic-version': '2023-06-01',
+        'anthropic-dangerous-direct-browser-access': 'true',
+      },
+      body: JSON.stringify({
+        model: 'claude-sonnet-4-20250514',
+        max_tokens: 2000,
+        messages: [{ role: 'user', content: prompt }]
+      })
+    });
+
+    if (!res.ok) {
+      const err = await res.json();
+      throw new Error(err.error?.message || `API error ${res.status}`);
+    }
+
+    const data = await res.json();
+    const text = data.content[0].text.trim().replace(/^```json\n?/, '').replace(/\n?```$/, '');
+    const article = JSON.parse(text);
+
+    const slug = slugify(article.title);
+    const date = new Date().toLocaleDateString('en-GB', { day: 'numeric', month: 'long', year: 'numeric' });
+
+    currentMeta  = { topic, category, tone, title: article.title, deck: article.deck, excerpt: article.excerpt, readTime: article.readTime, slug, date };
+    currentDraft = article.body;
+
+    // Show preview
+    document.getElementById('preview-meta').innerHTML = `
+      <span>Category: <span>${CATEGORY_LABELS[category]}</span></span>
+      <span>Date: <span>${date}</span></span>
+      <span>Est. read: <span>${article.readTime} min</span></span>
+      <span>Slug: <span>${slug}</span></span>
+    `;
+
+    document.getElementById('preview-content').innerHTML = `<h1>${article.title}</h1><p style="font-style:italic;color:var(--gold);margin-bottom:1.5rem;">${article.deck}</p>${article.body}`;
+
+    setStep(2);
+
+  } catch(e) {
+    showError(1, `Generation failed: ${e.message}`);
+  } finally {
+    btn.disabled = false;
+    btn.innerHTML = 'Generate Draft →';
+  }
+}
+
+// ── Publish ───────────────────────────────────────────────
+async function publishInsight() {
+  const ghToken = getToken();
+  if (!ghToken) { showError(2, 'Add your GitHub token in ⚙ Settings first.'); return; }
+
+  const btn = document.getElementById('publish-btn');
+  btn.disabled = true;
+  btn.innerHTML = '<span class="spinner"></span>Publishing...';
+  hideError(2);
+
+  try {
+    // Get edited content from preview
+    const editedHTML = document.getElementById('preview-content').innerHTML;
+    const { title, deck, excerpt, readTime, slug, date, category } = currentMeta;
+    const catLabel = CATEGORY_LABELS[category];
+
+    // 1. Build the article HTML page
+    const articleHTML = buildArticlePage({ title, deck, body: editedHTML, date, readTime, catLabel, slug });
+
+    // 2. Fetch current manifest (or start fresh)
+    let manifest = [];
+    try {
+      const mRes = await ghFetch('GET', `/repos/${GH_REPO}/contents/insights/manifest.json`, null, ghToken);
+      manifest = JSON.parse(atob(mRes.content.replace(/\n/g,'')));
+    } catch(e) { /* first article */ }
+
+    // Prepend new article
+    manifest.unshift({ title, deck, excerpt, date, readTime, slug, category, categoryLabel: catLabel });
+
+    // 3. Get current main SHA for tree
+    const refData    = await ghFetch('GET', `/repos/${GH_REPO}/git/refs/heads/main`, null, ghToken);
+    const baseSHA    = refData.object.sha;
+    const commitData = await ghFetch('GET', `/repos/${GH_REPO}/git/commits/${baseSHA}`, null, ghToken);
+    const baseTree   = commitData.tree.sha;
+
+    // 4. Create blobs
+    const articleBlob  = await ghFetch('POST', `/repos/${GH_REPO}/git/blobs`, { content: btoa(unescape(encodeURIComponent(articleHTML))), encoding: 'base64' }, ghToken);
+    const manifestBlob = await ghFetch('POST', `/repos/${GH_REPO}/git/blobs`, { content: btoa(unescape(encodeURIComponent(JSON.stringify(manifest, null, 2)))), encoding: 'base64' }, ghToken);
+
+    // 5. Build homepage snippet update
+    const homepageHTML  = await getFileContent('index.html', ghToken);
+    const updatedHome   = updateHomepageTeasers(homepageHTML, manifest.slice(0, 3));
+    const homeBlob      = await ghFetch('POST', `/repos/${GH_REPO}/git/blobs`, { content: btoa(unescape(encodeURIComponent(updatedHome))), encoding: 'base64' }, ghToken);
+
+    // 6. Create tree
+    const tree = await ghFetch('POST', `/repos/${GH_REPO}/git/trees`, {
+      base_tree: baseTree,
+      tree: [
+        { path: `insights/${slug}.html`, mode: '100644', type: 'blob', sha: articleBlob.sha },
+        { path: 'insights/manifest.json', mode: '100644', type: 'blob', sha: manifestBlob.sha },
+        { path: 'index.html', mode: '100644', type: 'blob', sha: homeBlob.sha },
+      ]
+    }, ghToken);
+
+    // 7. Commit
+    const commit = await ghFetch('POST', `/repos/${GH_REPO}/git/commits`, {
+      message: `Publish insight: ${title}`,
+      tree: tree.sha,
+      parents: [baseSHA]
+    }, ghToken);
+
+    // 8. Update ref
+    await ghFetch('PATCH', `/repos/${GH_REPO}/git/refs/heads/main`, { sha: commit.sha, force: true }, ghToken);
+
+    document.getElementById('pub-title').textContent = `"${title}" is live.`;
+    setStep(3);
+
+  } catch(e) {
+    showError(2, `Publish failed: ${e.message}`);
+  } finally {
+    btn.disabled = false;
+    btn.innerHTML = 'Publish to astrafay.com →';
+  }
+}
+
+// ── Helpers ───────────────────────────────────────────────
+function slugify(str) {
+  return str.toLowerCase()
+    .replace(/[^a-z0-9\s-]/g, '')
+    .replace(/\s+/g, '-')
+    .replace(/-+/g, '-')
+    .substring(0, 60) + '-' + Date.now().toString(36);
+}
+
+async function ghFetch(method, path, body, token) {
+  const res = await fetch(`https://api.github.com${path}`, {
+    method,
+    headers: {
+      'Authorization': `token ${token}`,
+      'Accept': 'application/vnd.github.v3+json',
+      'Content-Type': 'application/json',
+      'User-Agent': 'astrafay-publisher'
+    },
+    body: body ? JSON.stringify(body) : undefined
+  });
+  if (!res.ok) {
+    const err = await res.json();
+    throw new Error(err.message || `GitHub error ${res.status}`);
+  }
+  const raw = await res.text();
+  return raw ? JSON.parse(raw) : {};
+}
+
+async function getFileContent(path, token) {
+  const data = await ghFetch('GET', `/repos/${GH_REPO}/contents/${path}`, null, token);
+  return decodeURIComponent(escape(atob(data.content.replace(/\n/g,''))));
+}
+
+function updateHomepageTeasers(html, articles) {
+  // Inject/replace the insights teaser section between sentinel comments
+  const teaser = buildHomepageTeaser(articles);
+  if (html.includes('<!-- INSIGHTS_TEASER_START -->')) {
+    return html.replace(
+      /<!-- INSIGHTS_TEASER_START -->[\s\S]*?<!-- INSIGHTS_TEASER_END -->/,
+      `<!-- INSIGHTS_TEASER_START -->\n${teaser}\n<!-- INSIGHTS_TEASER_END -->`
+    );
+  }
+  // First time — inject before the CTA band
+  return html.replace('<!-- CTA BAND -->', `<!-- INSIGHTS_TEASER_START -->\n${teaser}\n<!-- INSIGHTS_TEASER_END -->\n\n<!-- CTA BAND -->`);
+}
+
+function buildHomepageTeaser(articles) {
+  const cards = articles.map(a => `
+        <a href="insights/${a.slug}.html" style="display:flex;flex-direction:column;padding:2.5rem 2rem;border-right:1px solid var(--rule-lt);border-bottom:1px solid var(--rule-lt);text-decoration:none;color:inherit;transition:background 0.2s;position:relative;overflow:hidden;" onmouseenter="this.style.background='rgba(200,150,60,0.03)'" onmouseleave="this.style.background=''">
+          <div style="font-family:var(--ff-mono);font-size:0.6rem;letter-spacing:0.2em;text-transform:uppercase;color:var(--gold);margin-bottom:0.9rem;">${a.categoryLabel}</div>
+          <div style="font-family:var(--ff-head);font-size:1.15rem;font-weight:700;line-height:1.25;color:var(--ink);margin-bottom:0.75rem;flex:1;">${a.title}</div>
+          <div style="font-size:0.88rem;color:var(--mid);line-height:1.65;margin-bottom:1.2rem;">${a.excerpt}</div>
+          <div style="font-family:var(--ff-mono);font-size:0.58rem;letter-spacing:0.15em;text-transform:uppercase;color:var(--light);border-top:1px solid var(--rule-lt);padding-top:0.85rem;">${a.date} &nbsp;·&nbsp; ${a.readTime} min read</div>
+        </a>`).join('');
+
+  return `<section style="background:var(--paper);padding:7rem 0;">
+  <div class="wrap">
+    <div style="display:flex;align-items:flex-end;justify-content:space-between;margin-bottom:3.5rem;padding-bottom:2rem;border-bottom:1px solid var(--rule);">
+      <div>
+        <div class="eyebrow">Latest Thinking</div>
+        <h2 class="display">Insights from <em>the field.</em></h2>
+      </div>
+      <a href="insights/index.html" class="btn btn-outline" style="flex-shrink:0;">All Insights &rarr;</a>
+    </div>
+    <div style="display:grid;grid-template-columns:repeat(3,1fr);border-top:1px solid var(--rule-lt);border-left:1px solid var(--rule-lt);">
+      ${cards}
+    </div>
+  </div>
+</section>`;
+}
+
+function buildArticlePage({ title, deck, body, date, readTime, catLabel, slug }) {
+  return `<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8"/>
+  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+  <title>${title} — Astrafay</title>
+  <meta name="description" content="${deck}"/>
+  <link rel="preconnect" href="https://fonts.googleapis.com"/>
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin/>
+  <link href="https://fonts.googleapis.com/css2?family=Playfair+Display:ital,wght@0,700;0,800;1,400;1,700&family=Cormorant+Garamond:ital,wght@0,300;0,400;1,300;1,400&family=DM+Mono:wght@300;400;500&family=Inter:wght@400;500;600&display=swap" rel="stylesheet"/>
+  <link rel="stylesheet" href="../style.css"/>
+  <style>
+    .article-hero { padding:9rem 0 4rem; background:linear-gradient(135deg,#1c1812 0%,#2a2218 60%,#1c1812 100%); position:relative; overflow:hidden; }
+    .article-hero::before { content:''; position:absolute; inset:0; background:radial-gradient(ellipse at 70% 40%,rgba(200,150,60,0.15) 0%,transparent 60%); }
+    .article-meta { display:flex; gap:1.5rem; flex-wrap:wrap; margin-bottom:1.5rem; }
+    .article-meta span { font-family:var(--ff-mono); font-size:0.62rem; letter-spacing:0.18em; text-transform:uppercase; color:var(--gold-lt); }
+    .article-title { font-family:var(--ff-head); font-size:clamp(2.2rem,4vw,3.8rem); font-weight:700; color:var(--paper); line-height:1.1; letter-spacing:-0.02em; margin-bottom:1rem; }
+    .article-deck { font-family:'Cormorant Garamond',serif; font-size:1.4rem; font-style:italic; font-weight:300; color:rgba(253,250,245,0.65); line-height:1.45; max-width:55ch; }
+    .article-body { max-width:720px; margin:0 auto; padding:5rem 2rem 7rem; }
+    .article-body h2 { font-family:var(--ff-head); font-size:1.5rem; font-weight:700; color:var(--ink); margin:2.5rem 0 0.9rem; line-height:1.2; }
+    .article-body p { font-size:1.08rem; color:var(--mid); line-height:1.88; margin-bottom:1.25rem; }
+    .article-author { display:flex; align-items:center; gap:1.5rem; padding:2rem; background:var(--cream); border-top:2px solid var(--gold); margin-top:3rem; }
+    .article-author img { width:56px; height:56px; border-radius:0; object-fit:cover; object-position:center top; }
+    .author-name { font-family:var(--ff-head); font-size:1.1rem; font-weight:700; color:var(--ink); }
+    .author-role { font-family:var(--ff-mono); font-size:0.6rem; letter-spacing:0.15em; text-transform:uppercase; color:var(--gold); margin-top:0.2rem; }
+    .back-link { font-family:var(--ff-mono); font-size:0.65rem; letter-spacing:0.18em; text-transform:uppercase; color:var(--gold); text-decoration:none; display:inline-flex; align-items:center; gap:0.4rem; margin-bottom:2rem; }
+    .back-link:hover { color:var(--ink); }
+  </style>
+</head>
+<body>
+<nav id="main-nav">
+  <a href="../index.html" class="nav-logo"><span class="nav-logo-mark"></span>Astrafay</a>
+  <ul class="nav-links">
+    <li><a href="../about/index.html">About</a></li>
+    <li><a href="../services/index.html">Services</a></li>
+    <li><a href="../clients/index.html">Global Reach</a></li>
+    <li><a href="../team/index.html">Our Team</a></li>
+    <li><a href="../insights/index.html" class="active">Insights</a></li>
+  </ul>
+  <a href="../index.html#contact" class="nav-cta">Start a Conversation</a>
+</nav>
+
+<div class="article-hero">
+  <div class="wrap">
+    <div class="article-meta">
+      <span>${catLabel}</span>
+      <span>${date}</span>
+      <span>${readTime} min read</span>
+    </div>
+    <h1 class="article-title">${title}</h1>
+    <p class="article-deck">${deck}</p>
+  </div>
+</div>
+
+<div class="article-body">
+  <a href="../insights/index.html" class="back-link">← All Insights</a>
+  ${body}
+  <div class="article-author">
+    <img src="../headshot.jpeg" alt="Dr. Mohamed Elfayoumy"/>
+    <div>
+      <div class="author-name">Dr. Mohamed Elfayoumy</div>
+      <div class="author-role">Founder &amp; CEO — Astrafay</div>
+    </div>
+  </div>
+</div>
+
+<footer>
+  <div class="footer-inner">
+    <div><div class="footer-logo-mark"><span class="nav-logo-mark"></span><span class="footer-brand">Astrafay</span></div><div class="footer-tagline">Strategy. Capital. Transformation.</div></div>
+    <div><div class="footer-nav-title">Navigate</div><ul class="footer-nav-list"><li><a href="../about/index.html">About</a></li><li><a href="../services/index.html">Services</a></li><li><a href="../insights/index.html">Insights</a></li></ul></div>
+    <div><div class="footer-nav-title">Contact</div><div class="footer-contact-item"><span class="footer-contact-label">Email</span><span class="footer-contact-val">contact@astrafay.com</span></div></div>
+  </div>
+  <div class="footer-bottom"><span>&copy; 2025 Astrafay Strategic Advisory LLC.</span><span>astrafay.com</span></div>
+</footer>
+<script>
+  const nav = document.getElementById('main-nav');
+  window.addEventListener('scroll', () => nav.classList.toggle('scrolled', window.scrollY > 40));
+<\/script>
+</body>
+</html>`;
+}
+
+function showError(panel, msg) { const el = document.getElementById(`error-${panel}`); el.textContent = msg; el.style.display = 'block'; }
+function hideError(panel)      { document.getElementById(`error-${panel}`).style.display = 'none'; }
+
+// ── Init ──────────────────────────────────────────────────
+loadSettings();
+updateSuggestions();
+</script>
+</body>
+</html>
